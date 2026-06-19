@@ -1,5 +1,5 @@
 {
-  "name": "ajsont",
+  "name": "@westonfleming/ajsont",
   "version": "0.1.0",
   "description": "Declarative JSON-to-JSON transformation using JSONPath",
   "type": "module",

@@ -7,13 +7,13 @@ Define the shape of your output as a template, reference source values with [JSO
 ## Install
 
 ```bash
-npm install ajsont
+npm install @westonfleming/ajsont
 ```
 
 ## Quick Example
 
 ```typescript
-import { transform } from 'ajsont';
+import { transform } from '@westonfleming/ajsont';
 
 const source = {
   person: { firstName: 'Jane', lastName: 'Doe' },
@@ -55,7 +55,7 @@ The mapping spec **is** the target shape. Every key in the spec becomes a key in
 Transform a source object according to a mapping spec.
 
 ```typescript
-import { transform } from 'ajsont';
+import { transform } from '@westonfleming/ajsont';
 
 const result = transform(source, spec);
 const result = transform(source, spec, { onMissing: 'null' });
@@ -80,7 +80,7 @@ const result = transform(source, spec, { onMissing: 'null' });
 Validate a mapping spec without executing it. Returns an array of validation errors.
 
 ```typescript
-import { validateSpec } from 'ajsont';
+import { validateSpec } from '@westonfleming/ajsont';
 
 const errors = validateSpec(spec);
 if (errors.length > 0) {
@@ -95,7 +95,7 @@ Each error has `{ path: string, message: string }` describing where in the spec 
 Thrown when `$onMissing` is set to `'error'` and a path cannot be resolved.
 
 ```typescript
-import { transform, AjsontError } from 'ajsont';
+import { transform, AjsontError } from '@westonfleming/ajsont';
 
 try {
   transform(source, spec);
@@ -248,7 +248,7 @@ The `$default` property provides a specific fallback value and takes priority ov
 Use `validateSpec` to catch issues in a mapping spec before execution:
 
 ```typescript
-import { validateSpec } from 'ajsont';
+import { validateSpec } from '@westonfleming/ajsont';
 
 const errors = validateSpec({
   x: { $unknownOp: '$.a' },
@@ -267,7 +267,7 @@ const errors = validateSpec({
 The package ships with full type definitions. Key exported types:
 
 ```typescript
-import type { TransformOptions, OnMissing, SpecValue } from 'ajsont';
+import type { TransformOptions, OnMissing, SpecValue } from '@westonfleming/ajsont';
 ```
 
 ## License
