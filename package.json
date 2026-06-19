@@ -1,0 +1,40 @@
+{
+  "name": "ajsont",
+  "version": "0.1.0",
+  "description": "Declarative JSON-to-JSON transformation using JSONPath",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "json",
+    "transform",
+    "jsonpath",
+    "mapping",
+    "event-normalization"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "jsonpath-plus": "^10.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}
