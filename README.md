@@ -13,22 +13,22 @@ npm install @westonfleming/ajsont
 ## Quick Example
 
 ```typescript
-import { transform } from '@westonfleming/ajsont';
+import { transform } from "@westonfleming/ajsont";
 
 const source = {
-  person: { firstName: 'Jane', lastName: 'Doe' },
-  contact: { email: 'jane@example.com' },
-  metadata: { uid: 'u-123' },
-  subscription: { plan: 'enterprise' },
+  person: { firstName: "Jane", lastName: "Doe" },
+  contact: { email: "jane@example.com" },
+  metadata: { uid: "u-123" },
+  subscription: { plan: "enterprise" },
 };
 
 const spec = {
   user: {
-    fullName: { $concat: ['$.person.firstName', ' ', '$.person.lastName'] },
-    email: { $path: '$.contact.email', $onMissing: 'omit' },
-    id: { $path: '$.metadata.uid' },
-    region: { $path: '$.geo.region', $default: 'US' },
-    tier: { $if: { exists: '$.subscription' }, then: 'premium', else: 'free' },
+    fullName: { $concat: ["$.person.firstName", " ", "$.person.lastName"] },
+    email: { $path: "$.contact.email", $onMissing: "omit" },
+    id: { $path: "$.metadata.uid" },
+    region: { $path: "$.geo.region", $default: "US" },
+    tier: { $if: { exists: "$.subscription" }, then: "premium", else: "free" },
   },
 };
 
@@ -55,24 +55,24 @@ The mapping spec **is** the target shape. Every key in the spec becomes a key in
 Transform a source object according to a mapping spec.
 
 ```typescript
-import { transform } from '@westonfleming/ajsont';
+import { transform } from "@westonfleming/ajsont";
 
 const result = transform(source, spec);
-const result = transform(source, spec, { onMissing: 'null' });
+const result = transform(source, spec, { onMissing: "null" });
 ```
 
 **Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `source` | `unknown` | The source JSON object to transform |
-| `spec` | `SpecValue` | The mapping specification (target-shaped template) |
-| `options` | `TransformOptions` | Optional global settings |
+| Parameter | Type               | Description                                        |
+| --------- | ------------------ | -------------------------------------------------- |
+| `source`  | `unknown`          | The source JSON object to transform                |
+| `spec`    | `SpecValue`        | The mapping specification (target-shaped template) |
+| `options` | `TransformOptions` | Optional global settings                           |
 
 **Options:**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
+| Option      | Type                          | Default  | Description                                  |
+| ----------- | ----------------------------- | -------- | -------------------------------------------- |
 | `onMissing` | `'omit' \| 'null' \| 'error'` | `'omit'` | Global default when a source path is missing |
 
 ### `validateSpec(spec)`
@@ -80,11 +80,11 @@ const result = transform(source, spec, { onMissing: 'null' });
 Validate a mapping spec without executing it. Returns an array of validation errors.
 
 ```typescript
-import { validateSpec } from '@westonfleming/ajsont';
+import { validateSpec } from "@westonfleming/ajsont";
 
 const errors = validateSpec(spec);
 if (errors.length > 0) {
-  console.error('Invalid spec:', errors);
+  console.error("Invalid spec:", errors);
 }
 ```
 
@@ -95,14 +95,14 @@ Each error has `{ path: string, message: string }` describing where in the spec 
 Thrown when `$onMissing` is set to `'error'` and a path cannot be resolved.
 
 ```typescript
-import { transform, AjsontError } from '@westonfleming/ajsont';
+import { transform, AjsontError } from "@westonfleming/ajsont";
 
 try {
   transform(source, spec);
 } catch (err) {
   if (err instanceof AjsontError) {
-    console.error(err.message);   // "Missing value at path: $.foo.bar"
-    console.error(err.jsonPath);  // "$.foo.bar"
+    console.error(err.message); // "Missing value at path: $.foo.bar"
+    console.error(err.jsonPath); // "$.foo.bar"
   }
 }
 ```
@@ -192,13 +192,14 @@ Evaluate a condition and resolve either the `then` or `else` branch.
 
 **Supported conditions:**
 
-| Condition | Meaning |
-|-----------|---------|
-| `{ "exists": "$.path" }` | True if the path resolves to any value |
-| `{ "eq": ["$.path", "value"] }` | True if resolved value equals the literal |
+| Condition                       | Meaning                                           |
+| ------------------------------- | ------------------------------------------------- |
+| `{ "exists": "$.path" }`        | True if the path resolves to any value            |
+| `{ "eq": ["$.path", "value"] }` | True if resolved value equals the literal         |
 | `{ "ne": ["$.path", "value"] }` | True if resolved value does not equal the literal |
 
 The `then` and `else` branches can be:
+
 - Literal values (`"active"`, `42`, `true`)
 - JSONPath strings (`"$.user.name"` — resolved against source)
 - Operator nodes (nested operators like `$concat`, `$path`, etc.)
@@ -224,16 +225,16 @@ When a JSONPath doesn't match anything in the source, behavior is controlled at 
 ### Global: `options.onMissing`
 
 ```typescript
-transform(source, spec, { onMissing: 'null' });
+transform(source, spec, { onMissing: "null" });
 ```
 
 **Strategies:**
 
-| Strategy | Behavior |
-|----------|----------|
-| `'omit'` | Key is excluded from output (default) |
-| `'null'` | Key is included with value `null` |
-| `'error'` | Throws `AjsontError` |
+| Strategy  | Behavior                              |
+| --------- | ------------------------------------- |
+| `'omit'`  | Key is excluded from output (default) |
+| `'null'`  | Key is included with value `null`     |
+| `'error'` | Throws `AjsontError`                  |
 
 Per-field `$onMissing` always takes priority over the global option.
 
@@ -248,10 +249,10 @@ The `$default` property provides a specific fallback value and takes priority ov
 Use `validateSpec` to catch issues in a mapping spec before execution:
 
 ```typescript
-import { validateSpec } from '@westonfleming/ajsont';
+import { validateSpec } from "@westonfleming/ajsont";
 
 const errors = validateSpec({
-  x: { $unknownOp: '$.a' },
+  x: { $unknownOp: "$.a" },
   y: { $if: { invalid: true } },
 });
 
@@ -267,7 +268,11 @@ const errors = validateSpec({
 The package ships with full type definitions. Key exported types:
 
 ```typescript
-import type { TransformOptions, OnMissing, SpecValue } from '@westonfleming/ajsont';
+import type {
+  TransformOptions,
+  OnMissing,
+  SpecValue,
+} from "@westonfleming/ajsont";
 ```
 
 ## License
