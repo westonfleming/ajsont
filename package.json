@@ -24,6 +24,7 @@
   ],
   "scripts": {
     "build": "tsup",
+    "build:docs": "vite build --config vite.bundle.config.mjs",
     "check:publint": "publint",
     "check:attw": "npm pack && attw *.tgz && rm *.tgz",
     "test": "vitest run",

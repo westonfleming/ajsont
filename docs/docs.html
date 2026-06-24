@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documentation — ajsont</title>
+  <meta name="description" content="Complete documentation for ajsont: the transform and validateSpec API, every operator, missing-value handling, and TypeScript types." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d5efc'/%3E%3Ctext x='16' y='22' font-size='16' font-family='monospace' font-weight='bold' fill='white' text-anchor='middle'%3E%7B%7D%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="container">
+      <a class="brand" href="index.html"><span class="logo">{}</span><span>ajsont</span></a>
+      <nav class="nav-links">
+        <a class="navlink" href="index.html">Home</a>
+        <a class="navlink" href="docs.html">Docs</a>
+        <a class="navlink" href="playground.html">Playground</a>
+        <a class="navlink" href="https://github.com/westonfleming/ajsont" target="_blank" rel="noopener">GitHub</a>
+        <button class="icon-btn theme-toggle" title="Toggle theme" aria-label="Toggle theme">
+          <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <!-- Sidebar -->
+    <aside class="docs-sidebar">
+      <h4>Getting started</h4>
+      <a href="#introduction">Introduction</a>
+      <a href="#installation">Installation</a>
+      <a href="#quick-start">Quick start</a>
+      <a href="#how-it-works">How it works</a>
+      <h4>API</h4>
+      <a href="#transform">transform()</a>
+      <a href="#validatespec">validateSpec()</a>
+      <a href="#ajsonterror">AjsontError</a>
+      <h4>Operators</h4>
+      <a href="#operators">Overview</a>
+      <a href="#op-path">$path</a>
+      <a href="#op-literal">$literal</a>
+      <a href="#op-concat">$concat</a>
+      <a href="#op-coalesce">$coalesce</a>
+      <a href="#op-string">$lower / $upper / $trim</a>
+      <a href="#op-if">$if</a>
+      <h4>Reference</h4>
+      <a href="#missing">Missing values</a>
+      <a href="#validation">Spec validation</a>
+      <a href="#typescript">TypeScript</a>
+    </aside>
+
+    <!-- Content -->
+    <main class="docs-content">
+      <h1>Documentation</h1>
+      <p class="lead">Declarative JSON-to-JSON transformation using JSONPath.</p>
+
+      <h2 id="introduction">Introduction<a class="anchor" href="#introduction">#</a></h2>
+      <p>
+        <strong>ajsont</strong> lets you describe the shape of your desired output as a
+        <em>template</em>, reference source values with
+        <a href="https://datatracker.ietf.org/doc/rfc9535/" target="_blank" rel="noopener">JSONPath</a>
+        expressions, and let the library produce the result. There is no custom query
+        language to learn — just standard JSONPath plus a small set of
+        <code>$</code>-prefixed operators.
+      </p>
+      <p>It's a great fit for event normalization, API response remapping, webhook adapters, and anywhere you'd otherwise hand-write a brittle mapping function.</p>
+
+      <h2 id="installation">Installation<a class="anchor" href="#installation">#</a></h2>
+      <div class="codeblock">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">terminal</span>
+          <button class="copy-code" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+        </div>
+        <pre><code data-lang="bash">npm install @westonfleming/ajsont</code></pre>
+      </div>
+      <p>The package ships dual ESM/CJS builds with full TypeScript types and has a single runtime dependency (<code>jsonpath-plus</code>).</p>
+
+      <h2 id="quick-start">Quick start<a class="anchor" href="#quick-start">#</a></h2>
+      <div class="codeblock">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">example.ts</span>
+          <button class="copy-code" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+        </div>
+        <pre><code data-lang="ts">import { transform } from "@westonfleming/ajsont";
+
+const source = {
+  person: { firstName: "Jane", lastName: "Doe" },
+  contact: { email: "jane@example.com" },
+  metadata: { uid: "u-123" },
+  subscription: { plan: "enterprise" },
+};
+
+const spec = {
+  user: {
+    fullName: { $concat: ["$.person.firstName", " ", "$.person.lastName"] },
+    email: { $path: "$.contact.email", $onMissing: "omit" },
+    id: { $path: "$.metadata.uid" },
+    region: { $path: "$.geo.region", $default: "US" },
+    tier: { $if: { exists: "$.subscription" }, then: "premium", else: "free" },
+  },
+};
+
+const result = transform(source, spec);
+// {
+//   user: {
+//     fullName: 'Jane Doe',
+//     email: 'jane@example.com',
+//     id: 'u-123',
+//     region: 'US',
+//     tier: 'premium'
+//   }
+// }</code></pre>
+      </div>
+      <div class="callout">
+        <strong>Tip:</strong> Want to experiment without installing anything?
+        Open the <a href="playground.html">interactive playground</a> and paste your own payload and spec.
+      </div>
+
+      <h2 id="how-it-works">How it works<a class="anchor" href="#how-it-works">#</a></h2>
+      <p>
+        The mapping spec <strong>is</strong> the target shape. Every key in the spec
+        becomes a key in the output. ajsont walks the spec recursively:
+      </p>
+      <ul>
+        <li><strong>Plain values</strong> (strings, numbers, booleans, <code>null</code>) pass through as literals.</li>
+        <li><strong>Objects with a <code>$</code>-prefixed key</strong> are treated as <em>operator nodes</em> and resolved against the source.</li>
+        <li><strong>Arrays</strong> are mapped element-by-element.</li>
+        <li><strong>Plain objects</strong> are recursed into key-by-key.</li>
+      </ul>
+
+      <h2 id="transform">transform(source, spec, options?)<a class="anchor" href="#transform">#</a></h2>
+      <p>Transform a source object according to a mapping spec. Returns the transformed result.</p>
+      <div class="codeblock">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">transform.ts</span>
+          <button class="copy-code" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+        </div>
+        <pre><code data-lang="ts">import { transform } from "@westonfleming/ajsont";
+
+const result = transform(source, spec);
+const result2 = transform(source, spec, { onMissing: "null" });</code></pre>
+      </div>
+      <h3>Parameters</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>source</code></td><td><code>unknown</code></td><td>The source JSON object to transform.</td></tr>
+          <tr><td><code>spec</code></td><td><code>SpecValue</code></td><td>The mapping specification (target-shaped template).</td></tr>
+          <tr><td><code>options</code></td><td><code>TransformOptions</code></td><td>Optional global settings.</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Options</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Option</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>onMissing</code></td><td><code>'omit' | 'null' | 'error'</code></td><td><code>'omit'</code></td><td>Global default when a source path is missing.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="validatespec">validateSpec(spec)<a class="anchor" href="#validatespec">#</a></h2>
+      <p>Validate a mapping spec without executing it. Returns an array of validation errors (empty if valid).</p>
+      <div class="codeblock">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">validate.ts</span>
+          <button class="copy-code" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+        </div>
+        <pre><code data-lang="ts">import { validateSpec } from "@westonfleming/ajsont";
+
+const errors = validateSpec(spec);
+if (errors.length > 0) {
+  console.error("Invalid spec:", errors);
+}</code></pre>
+      </div>
+      <p>Each error has <code>{ path: string, message: string }</code> describing where in the spec the issue is and what's wrong.</p>
+
+      <h2 id="ajsonterror">AjsontError<a class="anchor" href="#ajsonterror">#</a></h2>
+      <p>Thrown when <code>$onMissing</code> (or the global <code>onMissing</code>) is set to <code>'error'</code> and a path cannot be resolved.</p>
+      <div class="codeblock">
+        <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">error.ts</span>
+          <button class="copy-code" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+        </div>
+        <pre><code data-lang="ts">import { transform, AjsontError } from "@westonfleming/ajsont";
+
+try {
+  transform(source, spec);
+} catch (err) {
+  if (err instanceof AjsontError) {
+    console.error(err.message);  // "Missing value at path: $.foo.bar"
+    console.error(err.jsonPath); // "$.foo.bar"
+  }
+}</code></pre>
+      </div>
+
+      <h2 id="operators">Operators<a class="anchor" href="#operators">#</a></h2>
+      <p>
+        An operator node is an object with at least one <code>$</code>-prefixed key.
+        Here's the full set:
+      </p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Operator</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><a href="#op-path"><code>$path</code></a></td><td>Extract a value via JSONPath.</td></tr>
+          <tr><td><a href="#op-literal"><code>$literal</code></a></td><td>Return a value as-is, uninterpreted.</td></tr>
+          <tr><td><a href="#op-concat"><code>$concat</code></a></td><td>Join values into a single string.</td></tr>
+          <tr><td><a href="#op-coalesce"><code>$coalesce</code></a></td><td>First non-null value from a list.</td></tr>
+          <tr><td><a href="#op-string"><code>$lower</code> / <code>$upper</code> / <code>$trim</code></a></td><td>String transforms.</td></tr>
+          <tr><td><a href="#op-if"><code>$if</code></a></td><td>Conditional mapping.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3 id="op-path">$path — Extract a value<a class="anchor" href="#op-path">#</a></h3>
+      <p>Resolve a JSONPath expression against the source and place the result in the output.</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{ "$path": "$.user.name" }</code></pre></div>
+      <p>Combine with <code>$default</code> or <code>$onMissing</code> to control behavior when the path doesn't exist:</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{ "$path": "$.user.nickname", "$default": "Anonymous" }
+{ "$path": "$.user.nickname", "$onMissing": "null" }</code></pre></div>
+
+      <h3 id="op-literal">$literal — Escape hatch<a class="anchor" href="#op-literal">#</a></h3>
+      <p>Return a value as-is, without interpreting <code>$</code>-prefixed keys as operators. Use this when your target output needs to contain keys that start with <code>$</code>.</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{ "$literal": { "$path": "this is not an operator, just data" } }</code></pre></div>
+
+      <h3 id="op-concat">$concat — Concatenate values<a class="anchor" href="#op-concat">#</a></h3>
+      <p>Join multiple values into a single string. Items that start with <code>$.</code> are resolved as JSONPath; everything else is treated as a literal string.</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{ "$concat": ["$.person.firstName", " ", "$.person.lastName"] }</code></pre></div>
+
+      <h3 id="op-coalesce">$coalesce — First available value<a class="anchor" href="#op-coalesce">#</a></h3>
+      <p>Return the first non-null, non-undefined value from a list of JSONPath expressions.</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{ "$coalesce": ["$.user.preferredName", "$.user.firstName", "$.user.id"] }</code></pre></div>
+      <p>Supports <code>$default</code> as a final fallback:</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{ "$coalesce": ["$.primary", "$.secondary"], "$default": "unknown" }</code></pre></div>
+
+      <h3 id="op-string">$lower / $upper / $trim — String transforms<a class="anchor" href="#op-string">#</a></h3>
+      <p>Resolve a JSONPath and transform the resulting string.</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{ "$lower": "$.user.email" }
+{ "$upper": "$.event.type" }
+{ "$trim": "$.input.rawName" }</code></pre></div>
+
+      <h3 id="op-if">$if — Conditional mapping<a class="anchor" href="#op-if">#</a></h3>
+      <p>Evaluate a condition and resolve either the <code>then</code> or <code>else</code> branch.</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{
+  "$if": { "exists": "$.subscription" },
+  "then": "premium",
+  "else": "free"
+}</code></pre></div>
+      <p><strong>Supported conditions:</strong></p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Condition</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><code>{ "exists": "$.path" }</code></td><td>True if the path resolves to any value.</td></tr>
+          <tr><td><code>{ "eq": ["$.path", "value"] }</code></td><td>True if the resolved value equals the literal.</td></tr>
+          <tr><td><code>{ "ne": ["$.path", "value"] }</code></td><td>True if the resolved value does not equal the literal.</td></tr>
+        </tbody>
+      </table></div>
+      <p>The <code>then</code> and <code>else</code> branches can be literal values, JSONPath strings, or nested operator nodes:</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{
+  "$if": { "exists": "$.user.fullName" },
+  "then": "$.user.fullName",
+  "else": { "$concat": ["$.user.first", " ", "$.user.last"] }
+}</code></pre></div>
+
+      <h2 id="missing">Missing property handling<a class="anchor" href="#missing">#</a></h2>
+      <p>When a JSONPath doesn't match anything in the source, behavior is controlled at two levels.</p>
+      <h3>Per-field: <code>$onMissing</code></h3>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{ "$path": "$.optional.field", "$onMissing": "null" }</code></pre></div>
+      <h3>Global: <code>options.onMissing</code></h3>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">transform.ts</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="ts">transform(source, spec, { onMissing: "null" });</code></pre></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Strategy</th><th>Behavior</th></tr></thead>
+        <tbody>
+          <tr><td><code>'omit'</code></td><td>Key is excluded from output (default).</td></tr>
+          <tr><td><code>'null'</code></td><td>Key is included with value <code>null</code>.</td></tr>
+          <tr><td><code>'error'</code></td><td>Throws <code>AjsontError</code>.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout">
+        <strong>Priority:</strong> Per-field <code>$onMissing</code> always takes priority over the global option, and
+        <code>$default</code> takes priority over both.
+      </div>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{ "$path": "$.missing", "$default": "fallback value" }</code></pre></div>
+
+      <h2 id="validation">Spec validation<a class="anchor" href="#validation">#</a></h2>
+      <p>Use <code>validateSpec</code> to catch issues in a mapping spec before execution:</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">validate.ts</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="ts">import { validateSpec } from "@westonfleming/ajsont";
+
+const errors = validateSpec({
+  x: { $unknownOp: "$.a" },
+  y: { $if: { invalid: true } },
+});
+
+// [
+//   { path: '$.x', message: 'Unknown operator: $unknownOp' },
+//   { path: '$.y', message: '$if condition must have one of: exists, eq, ne' },
+//   { path: '$.y', message: '$if requires a "then" property' }
+// ]</code></pre></div>
+
+      <h2 id="typescript">TypeScript<a class="anchor" href="#typescript">#</a></h2>
+      <p>The package ships with full type definitions. Key exported types:</p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">types.ts</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="ts">import type {
+  TransformOptions,
+  OnMissing,
+  SpecValue,
+} from "@westonfleming/ajsont";</code></pre></div>
+
+      <div class="callout" style="margin-top:48px">
+        Ready to try it? Head to the <a href="playground.html">playground →</a>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <span class="muted">© <span id="year"></span> ajsont · Released under the MIT License</span>
+      <nav class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="playground.html">Playground</a>
+        <a href="https://github.com/westonfleming/ajsont" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://www.npmjs.com/package/@westonfleming/ajsont" target="_blank" rel="noopener">npm</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="assets/site.js"></script>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
