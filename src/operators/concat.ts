@@ -22,6 +22,7 @@ export function handleConcat(
         if (strategy === 'null') {
           parts.push('');
         }
+        // 'skip' drops only the missing part, keeping the rest: (A + B + Missing) -> (A + B)
         // 'error' would have been caught upstream in a $path node
       } else {
         parts.push(String(value));

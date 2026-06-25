@@ -78,6 +78,17 @@ describe('$concat operator', () => {
     const spec = { name: { $concat: ['$.first', ' ', '$.missing'], $onMissing: 'null' } };
     expect(transform(source, spec)).toEqual({ name: 'Jane ' });
   });
+
+  it('skips a missing part with onMissing: skip, keeping the rest', () => {
+    // (A + B + Missing) still returns (A + B)
+    const spec = { name: { $concat: ['$.first', ' ', '$.last', '$.missing'], $onMissing: 'skip' } };
+    expect(transform(source, spec)).toEqual({ name: 'Jane Doe' });
+  });
+
+  it('skips a missing part in the middle with onMissing: skip', () => {
+    const spec = { name: { $concat: ['$.first', '$.missing', '$.last'], $onMissing: 'skip' } };
+    expect(transform(source, spec)).toEqual({ name: 'JaneDoe' });
+  });
 });
 
 describe('$coalesce operator', () => {

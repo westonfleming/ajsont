@@ -3,7 +3,7 @@ export interface TransformOptions {
   onMissing?: OnMissing;
 }
 
-export type OnMissing = 'omit' | 'null' | 'error';
+export type OnMissing = 'omit' | 'null' | 'error' | 'skip';
 
 /** Sentinel value used internally to represent a missing/unresolved path */
 export const MISSING = Symbol('MISSING');
