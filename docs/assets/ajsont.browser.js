@@ -968,11 +968,13 @@ function A(t, n) {
 	return i === e ? e : String(i).trim();
 }
 //#endregion
-//#region src/operators/conditional.ts
-function j(t, n, r) {
-	let i = t.$if, a = M(i, n) ? t.then : t.else;
-	return a === void 0 ? e : N(a, n, r);
-}
+//#region src/operators/conditions.ts
+var j = [
+	"gt",
+	"lt",
+	"gte",
+	"lte"
+];
 function M(t, n) {
 	if ("exists" in t) return S(n, t.exists) !== e;
 	if ("eq" in t) {
@@ -983,9 +985,29 @@ function M(t, n) {
 		let [r, i] = t.ne, a = S(n, r);
 		return a === e ? !0 : a !== i;
 	}
+	for (let r of j) if (r in t) {
+		let [i, a] = t[r], o = S(n, i);
+		if (o === e) return !1;
+		let s = Number(o), c = Number(a);
+		return Number.isNaN(s) || Number.isNaN(c) ? !1 : N(r, s, c);
+	}
 	return !1;
 }
-function N(t, n, r) {
+function N(e, t, n) {
+	switch (e) {
+		case "gt": return t > n;
+		case "lt": return t < n;
+		case "gte": return t >= n;
+		case "lte": return t <= n;
+	}
+}
+//#endregion
+//#region src/operators/conditional.ts
+function P(t, n, r) {
+	let i = t.$if, a = M(i, n) ? t.then : t.else;
+	return a === void 0 ? e : F(a, n, r);
+}
+function F(t, n, r) {
 	if (typeof t != "object" || !t) {
 		if (typeof t == "string" && t.startsWith("$.")) {
 			let r = S(n, t);
@@ -993,58 +1015,51 @@ function N(t, n, r) {
 		}
 		return t;
 	}
-	if (Array.isArray(t)) return t.map((e) => N(e, n, r));
-	if (F(t)) return I(t, n, r);
+	if (Array.isArray(t)) return t.map((e) => F(e, n, r));
+	if (B(t)) return V(t, n, r);
 	let i = {};
-	for (let [e, a] of Object.entries(t)) i[e] = N(a, n, r);
+	for (let [e, a] of Object.entries(t)) i[e] = F(a, n, r);
 	return i;
 }
 //#endregion
-//#region src/operators/index.ts
-var P = new Set([
-	"$path",
-	"$literal",
-	"$concat",
-	"$coalesce",
-	"$lower",
-	"$upper",
-	"$trim",
-	"$if"
-]);
-function F(e) {
-	return Object.keys(e).some((e) => P.has(e));
-}
-function I(e, t, n) {
-	return "$literal" in e ? T(e) : "$if" in e ? j(e, t, n) : "$path" in e ? w(e, t, n) : "$concat" in e ? E(e, t, n) : "$coalesce" in e ? D(e, t, n) : "$lower" in e ? O(e, t) : "$upper" in e ? k(e, t) : "$trim" in e ? A(e, t) : e;
-}
-//#endregion
-//#region src/transform.ts
-function L(e, t, n = {}) {
-	return R(t, e, {
-		onMissing: "omit",
-		...n
-	});
-}
-function R(t, n, r) {
-	if (typeof t != "object" || !t) return t;
-	if (Array.isArray(t)) {
-		let i = [];
-		for (let a of t) {
-			let t = R(a, n, r);
-			t !== e && i.push(t);
+//#region src/operators/array.ts
+function I(t, n, r) {
+	if ("$find" in t && "$filter" in t) throw new C("$find and $filter cannot be used together on the same node");
+	let i = L(t, n);
+	if (i === e) return R(t, r, `$path resolved to no array: ${t.$path ?? "(scope)"}`);
+	if (!Array.isArray(i)) throw new C(`$map/$filter/$find requires an array, got ${typeof i}`, { jsonPath: t.$path });
+	if ("$find" in t) {
+		let e = t.$find, n = i.find((t) => M(e, t));
+		return n === void 0 ? R(t, r, "$find matched no element") : n;
+	}
+	let a = i;
+	if ("$filter" in t) {
+		let e = t.$filter;
+		a = a.filter((t) => M(e, t));
+	}
+	if ("$map" in t) {
+		let n = t.$map, i = [];
+		for (let t of a) {
+			let a = U(n, t, r);
+			a !== e && i.push(a);
 		}
 		return i;
 	}
-	if (F(t)) return I(t, n, r);
-	let i = {};
-	for (let [a, o] of Object.entries(t)) {
-		let t = R(o, n, r);
-		t !== e && (i[a] = t);
+	return a;
+}
+function L(t, n) {
+	return "$path" in t ? S(n, t.$path) : Array.isArray(n) ? n : e;
+}
+function R(t, n, r) {
+	if ("$default" in t) return t.$default;
+	switch (t.$onMissing ?? n.onMissing ?? "omit") {
+		case "null": return null;
+		case "error": throw new C(r, { jsonPath: t.$path });
+		default: return e;
 	}
-	return i;
 }
 //#endregion
-//#region src/validate.ts
+//#region src/operators/index.ts
 var z = new Set([
 	"$path",
 	"$literal",
@@ -1054,51 +1069,120 @@ var z = new Set([
 	"$upper",
 	"$trim",
 	"$if",
+	"$map",
+	"$filter",
+	"$find"
+]);
+function B(e) {
+	return Object.keys(e).some((e) => z.has(e));
+}
+function V(e, t, n) {
+	return "$literal" in e ? T(e) : "$if" in e ? P(e, t, n) : "$map" in e || "$filter" in e || "$find" in e ? I(e, t, n) : "$path" in e ? w(e, t, n) : "$concat" in e ? E(e, t, n) : "$coalesce" in e ? D(e, t, n) : "$lower" in e ? O(e, t) : "$upper" in e ? k(e, t) : "$trim" in e ? A(e, t) : e;
+}
+//#endregion
+//#region src/transform.ts
+function H(e, t, n = {}) {
+	return U(t, e, {
+		onMissing: "omit",
+		...n
+	});
+}
+function U(t, n, r) {
+	if (typeof t != "object" || !t) return t;
+	if (Array.isArray(t)) {
+		let i = [];
+		for (let a of t) {
+			let t = U(a, n, r);
+			t !== e && i.push(t);
+		}
+		return i;
+	}
+	if (B(t)) return V(t, n, r);
+	let i = {};
+	for (let [a, o] of Object.entries(t)) {
+		let t = U(o, n, r);
+		t !== e && (i[a] = t);
+	}
+	return i;
+}
+//#endregion
+//#region src/validate.ts
+var W = new Set([
+	"$path",
+	"$literal",
+	"$concat",
+	"$coalesce",
+	"$lower",
+	"$upper",
+	"$trim",
+	"$if",
+	"$map",
+	"$filter",
+	"$find",
 	"$default",
 	"$onMissing"
-]), B = new Set([
+]), G = new Set([
 	"omit",
 	"null",
 	"error"
-]);
-function V(e) {
+]), K = new Set([
+	"exists",
+	"eq",
+	"ne",
+	"gt",
+	"lt",
+	"gte",
+	"lte"
+]), q = new Set([
+	"eq",
+	"ne",
+	"gt",
+	"lt",
+	"gte",
+	"lte"
+]), J = [
+	"$map",
+	"$filter",
+	"$find"
+];
+function Y(e) {
 	let t = [];
-	return H(e, "$", t), t;
+	return X(e, "$", t, !1), t;
 }
-function H(e, t, n) {
+function X(e, t, n, r) {
 	if (typeof e != "object" || !e) return;
 	if (Array.isArray(e)) {
-		e.forEach((e, r) => H(e, `${t}[${r}]`, n));
+		e.forEach((e, i) => X(e, `${t}[${i}]`, n, r));
 		return;
 	}
-	let r = Object.keys(e).filter((e) => e.startsWith("$"));
-	if (r.length === 0) {
-		for (let [r, i] of Object.entries(e)) H(i, `${t}.${r}`, n);
+	let i = Object.keys(e).filter((e) => e.startsWith("$"));
+	if (i.length === 0) {
+		for (let [i, a] of Object.entries(e)) X(a, `${t}.${i}`, n, r);
 		return;
 	}
-	for (let e of r) z.has(e) || n.push({
+	for (let e of i) W.has(e) || n.push({
 		path: t,
 		message: `Unknown operator: ${e}`
 	});
-	let i = e;
-	if ("$path" in i && (typeof i.$path == "string" ? i.$path.startsWith("$") || n.push({
+	let a = e;
+	if ("$path" in a && (typeof a.$path == "string" ? a.$path.startsWith("$") || n.push({
 		path: t,
 		message: "$path must be a valid JSONPath expression (should start with $)"
 	}) : n.push({
 		path: t,
 		message: "$path must be a string"
-	})), "$onMissing" in i && (B.has(i.$onMissing) || n.push({
+	})), "$onMissing" in a && (G.has(a.$onMissing) || n.push({
 		path: t,
 		message: "$onMissing must be one of: omit, null, error"
-	})), "$concat" in i && (Array.isArray(i.$concat) || n.push({
+	})), "$concat" in a && (Array.isArray(a.$concat) || n.push({
 		path: t,
 		message: "$concat must be an array"
-	})), "$coalesce" in i) {
-		if (!Array.isArray(i.$coalesce)) n.push({
+	})), "$coalesce" in a) {
+		if (!Array.isArray(a.$coalesce)) n.push({
 			path: t,
 			message: "$coalesce must be an array"
 		});
-		else for (let e of i.$coalesce) if (typeof e != "string") {
+		else for (let e of a.$coalesce) if (typeof e != "string") {
 			n.push({
 				path: t,
 				message: "$coalesce items must be JSONPath strings"
@@ -1106,38 +1190,49 @@ function H(e, t, n) {
 			break;
 		}
 	}
-	if ("$if" in i) {
-		let e = i.$if;
-		if (typeof e != "object" || !e) n.push({
-			path: t,
-			message: "$if must be a condition object"
-		});
-		else {
-			let r = e;
-			"exists" in r || "eq" in r || "ne" in r || n.push({
-				path: t,
-				message: "$if condition must have one of: exists, eq, ne"
-			}), "eq" in r && (!Array.isArray(r.eq) || r.eq.length !== 2) && n.push({
-				path: t,
-				message: "$if eq must be a [path, value] tuple"
-			}), "ne" in r && (!Array.isArray(r.ne) || r.ne.length !== 2) && n.push({
-				path: t,
-				message: "$if ne must be a [path, value] tuple"
-			});
-		}
-		"then" in i || n.push({
-			path: t,
-			message: "$if requires a \"then\" property"
-		});
-	}
+	"$if" in a && (Z(a.$if, "$if", t, n), "then" in a || n.push({
+		path: t,
+		message: "$if requires a \"then\" property"
+	})), J.some((e) => e in a) && ("$find" in a && "$filter" in a && n.push({
+		path: t,
+		message: "$find and $filter cannot be used together on the same node"
+	}), !("$path" in a) && !r && n.push({
+		path: t,
+		message: "$map/$filter/$find requires a $path that resolves to an array (or an enclosing $map scope)"
+	}), "$filter" in a && Z(a.$filter, "$filter", t, n), "$find" in a && Z(a.$find, "$find", t, n), "$map" in a && X(a.$map, `${t}.$map`, n, !0));
 	for (let e of [
 		"$lower",
 		"$upper",
 		"$trim"
-	]) e in i && typeof i[e] != "string" && n.push({
+	]) e in a && typeof a[e] != "string" && n.push({
 		path: t,
 		message: `${e} must be a JSONPath string`
 	});
 }
+function Z(e, t, n, r) {
+	if (typeof e != "object" || !e) {
+		r.push({
+			path: n,
+			message: `${t} must be a condition object`
+		});
+		return;
+	}
+	let i = e, a = Object.keys(i).filter((e) => K.has(e));
+	a.length === 0 && r.push({
+		path: n,
+		message: `${t} condition must have one of: exists, eq, ne, gt, lt, gte, lte`
+	});
+	for (let e of Object.keys(i)) K.has(e) || r.push({
+		path: n,
+		message: `${t} has unknown condition key: ${e}`
+	});
+	for (let e of a) if (q.has(e)) {
+		let a = i[e];
+		(!Array.isArray(a) || a.length !== 2) && r.push({
+			path: n,
+			message: `${t} ${e} must be a [path, value] tuple`
+		});
+	}
+}
 //#endregion
-export { C as AjsontError, L as transform, V as validateSpec };
+export { C as AjsontError, H as transform, Y as validateSpec };
