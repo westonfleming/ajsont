@@ -44,6 +44,51 @@ const result = transform(source, spec);
 // }
 ```
 
+## Working with Arrays
+
+Reshape, narrow, or pluck items out of a source array with `$map`, `$filter`, and `$find`. Inside these operators, each array element becomes the JSONPath root, so paths like `$.title` refer to fields on the current item.
+
+```typescript
+import { transform } from "@westonfleming/ajsont";
+
+const source = {
+  order: {
+    items: [
+      { title: "Pen", price: 2, quantity: 3 },
+      { title: "Pad", price: 5, quantity: 0 },
+      { title: "Ink", price: 9, quantity: 1 },
+    ],
+  },
+};
+
+const spec = {
+  lineItems: {
+    $path: "$.order.items",
+    $filter: { gt: ["$.quantity", 0] },
+    $map: {
+      name: { $path: "$.title" },
+      total: { $concat: ["$", "$.price"] },
+    },
+  },
+};
+
+const result = transform(source, spec);
+// {
+//   lineItems: [
+//     { name: 'Pen', total: '$2' },
+//     { name: 'Ink', total: '$9' }
+//   ]
+// }
+```
+
+Use `$find` to extract a single matching item (the item itself, not an array):
+
+```typescript
+const spec = {
+  primaryContact: { $path: "$.contacts", $find: { eq: ["$.role", "primary"] }, $default: null },
+};
+```
+
 ## How It Works
 
 The mapping spec **is** the target shape. Every key in the spec becomes a key in the output. When a value is an operator node (an object with a `$`-prefixed key), `ajsont` resolves it against the source. Plain values (strings, numbers, booleans, null) pass through as literals.
@@ -192,11 +237,17 @@ Evaluate a condition and resolve either the `then` or `else` branch.
 
 **Supported conditions:**
 
-| Condition                       | Meaning                                           |
-| ------------------------------- | ------------------------------------------------- |
-| `{ "exists": "$.path" }`        | True if the path resolves to any value            |
-| `{ "eq": ["$.path", "value"] }` | True if resolved value equals the literal         |
-| `{ "ne": ["$.path", "value"] }` | True if resolved value does not equal the literal |
+| Condition                       | Meaning                                              |
+| ------------------------------- | ---------------------------------------------------- |
+| `{ "exists": "$.path" }`        | True if the path resolves to any value               |
+| `{ "eq": ["$.path", "value"] }` | True if resolved value equals the literal            |
+| `{ "ne": ["$.path", "value"] }` | True if resolved value does not equal the literal    |
+| `{ "gt": ["$.path", 0] }`       | True if the resolved number is greater than the value |
+| `{ "lt": ["$.path", 0] }`       | True if the resolved number is less than the value   |
+| `{ "gte": ["$.path", 0] }`      | True if the resolved number is `>=` the value        |
+| `{ "lte": ["$.path", 0] }`      | True if the resolved number is `<=` the value        |
+
+The same condition shape is shared by `$filter` and `$find`. Numeric comparisons coerce both sides to numbers; a missing or non-numeric value is `false`.
 
 The `then` and `else` branches can be:
 
@@ -209,6 +260,37 @@ The `then` and `else` branches can be:
   "$if": { "exists": "$.user.fullName" },
   "then": "$.user.fullName",
   "else": { "$concat": ["$.user.first", " ", "$.user.last"] }
+}
+```
+
+### `$map` — Transform each item in an array
+
+Apply a nested spec to every element of the array resolved by `$path`. Each element becomes the JSONPath root for paths inside the nested spec. Nesting (a `$map` inside a `$map`) is supported.
+
+```json
+{
+  "$path": "$.order.items",
+  "$map": { "name": { "$path": "$.title" }, "cost": { "$path": "$.price" } }
+}
+```
+
+### `$filter` — Keep matching items
+
+Drop array elements that don't match a condition (same condition shape as `$if`, including `gt`/`lt`/`gte`/`lte`). Use it standalone, or combine it with `$map` — filtering happens first, then the remaining items are reshaped.
+
+```json
+{ "$path": "$.order.items", "$filter": { "gt": ["$.quantity", 0] } }
+```
+
+### `$find` — Extract the first matching item
+
+Return the first array element matching a condition — the element itself, not an array. Supports `$default` (or `$onMissing`) for the no-match case. `$find` and `$filter` cannot be used together on the same node.
+
+```json
+{
+  "$path": "$.contacts",
+  "$find": { "eq": ["$.role", "primary"] },
+  "$default": null
 }
 ```
 
@@ -244,6 +326,10 @@ The `$default` property provides a specific fallback value and takes priority ov
 { "$path": "$.missing", "$default": "fallback value" }
 ```
 
+### Arrays
+
+A `$filter` that removes every element produces an empty array (`[]`) — the key is kept, not omitted. If the source array itself is missing, the usual `$default` → `$onMissing` → global precedence applies. `$find` with no match follows the same precedence as `$path`.
+
 ## Spec Validation
 
 Use `validateSpec` to catch issues in a mapping spec before execution:
@@ -272,6 +358,9 @@ import type {
   TransformOptions,
   OnMissing,
   SpecValue,
+  Condition,
+  IfCondition,
+  ArrayCondition,
 } from "@westonfleming/ajsont";
 ```
 

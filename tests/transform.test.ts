@@ -178,6 +178,185 @@ describe('$if operator', () => {
   });
 });
 
+describe('$if numeric conditions', () => {
+  it('evaluates gt / gte / lt / lte', () => {
+    const source = { qty: 5 };
+    expect(transform(source, { ok: { $if: { gt: ['$.qty', 0] }, then: 'yes', else: 'no' } })).toEqual({ ok: 'yes' });
+    expect(transform(source, { ok: { $if: { gte: ['$.qty', 5] }, then: 'yes', else: 'no' } })).toEqual({ ok: 'yes' });
+    expect(transform(source, { ok: { $if: { lt: ['$.qty', 5] }, then: 'yes', else: 'no' } })).toEqual({ ok: 'no' });
+    expect(transform(source, { ok: { $if: { lte: ['$.qty', 5] }, then: 'yes', else: 'no' } })).toEqual({ ok: 'yes' });
+  });
+
+  it('treats missing or non-numeric values as not matching', () => {
+    expect(transform({}, { ok: { $if: { gt: ['$.qty', 0] }, then: 'yes', else: 'no' } })).toEqual({ ok: 'no' });
+    expect(transform({ qty: 'abc' }, { ok: { $if: { gt: ['$.qty', 0] }, then: 'yes', else: 'no' } })).toEqual({ ok: 'no' });
+  });
+});
+
+describe('$map operator', () => {
+  const source = {
+    order: {
+      items: [
+        { title: 'Pen', price: 2, quantity: 3 },
+        { title: 'Pad', price: 5, quantity: 0 },
+        { title: 'Ink', price: 9, quantity: 1 },
+      ],
+    },
+  };
+
+  it('reshapes each element of a source array', () => {
+    const spec = {
+      lines: {
+        $path: '$.order.items',
+        $map: { name: { $path: '$.title' }, cost: { $path: '$.price' } },
+      },
+    };
+    expect(transform(source, spec)).toEqual({
+      lines: [
+        { name: 'Pen', cost: 2 },
+        { name: 'Pad', cost: 5 },
+        { name: 'Ink', cost: 9 },
+      ],
+    });
+  });
+
+  it('supports nested operators inside the map spec', () => {
+    const spec = {
+      lines: {
+        $path: '$.order.items',
+        $map: { label: { $upper: '$.title' } },
+      },
+    };
+    expect(transform(source, spec)).toEqual({
+      lines: [{ label: 'PEN' }, { label: 'PAD' }, { label: 'INK' }],
+    });
+  });
+
+  it('omits keys per element using onMissing rules', () => {
+    const spec = {
+      lines: {
+        $path: '$.order.items',
+        $map: { name: { $path: '$.title' }, sku: { $path: '$.sku' } },
+      },
+    };
+    expect(transform(source, spec)).toEqual({
+      lines: [{ name: 'Pen' }, { name: 'Pad' }, { name: 'Ink' }],
+    });
+  });
+
+  it('applies $default when the array path is missing', () => {
+    const spec = { lines: { $path: '$.nope', $map: { x: { $path: '$.title' } }, $default: [] } };
+    expect(transform(source, spec)).toEqual({ lines: [] });
+  });
+});
+
+describe('$filter operator', () => {
+  const source = {
+    order: {
+      items: [
+        { title: 'Pen', price: 2, quantity: 3 },
+        { title: 'Pad', price: 5, quantity: 0 },
+        { title: 'Ink', price: 9, quantity: 1 },
+      ],
+    },
+  };
+
+  it('keeps only matching elements (standalone)', () => {
+    const spec = { inStock: { $path: '$.order.items', $filter: { gt: ['$.quantity', 0] } } };
+    expect(transform(source, spec)).toEqual({
+      inStock: [
+        { title: 'Pen', price: 2, quantity: 3 },
+        { title: 'Ink', price: 9, quantity: 1 },
+      ],
+    });
+  });
+
+  it('filters before mapping when combined with $map', () => {
+    const spec = {
+      lines: {
+        $path: '$.order.items',
+        $filter: { gt: ['$.quantity', 0] },
+        $map: { name: { $path: '$.title' } },
+      },
+    };
+    expect(transform(source, spec)).toEqual({
+      lines: [{ name: 'Pen' }, { name: 'Ink' }],
+    });
+  });
+
+  it('returns an empty array (not omitted) when nothing matches', () => {
+    const spec = { lines: { $path: '$.order.items', $filter: { gt: ['$.quantity', 999] } } };
+    expect(transform(source, spec)).toEqual({ lines: [] });
+  });
+
+  it('supports eq / ne conditions', () => {
+    const spec = { pens: { $path: '$.order.items', $filter: { eq: ['$.title', 'Pen'] } } };
+    expect(transform(source, spec)).toEqual({ pens: [{ title: 'Pen', price: 2, quantity: 3 }] });
+  });
+});
+
+describe('$find operator', () => {
+  const source = {
+    contacts: [
+      { role: 'billing', email: 'b@example.com' },
+      { role: 'primary', email: 'p@example.com' },
+    ],
+  };
+
+  it('returns the first matching element itself, not an array', () => {
+    const spec = { primary: { $path: '$.contacts', $find: { eq: ['$.role', 'primary'] } } };
+    expect(transform(source, spec)).toEqual({
+      primary: { role: 'primary', email: 'p@example.com' },
+    });
+  });
+
+  it('uses $default when no element matches', () => {
+    const spec = { primary: { $path: '$.contacts', $find: { eq: ['$.role', 'ceo'] }, $default: null } };
+    expect(transform(source, spec)).toEqual({ primary: null });
+  });
+
+  it('omits by default when no element matches', () => {
+    const spec = { primary: { $path: '$.contacts', $find: { eq: ['$.role', 'ceo'] } } };
+    expect(transform(source, spec)).toEqual({});
+  });
+
+  it('throws on $onMissing: error when no element matches', () => {
+    const spec = { primary: { $path: '$.contacts', $find: { eq: ['$.role', 'ceo'] }, $onMissing: 'error' } };
+    expect(() => transform(source, spec)).toThrow(AjsontError);
+  });
+
+  it('throws when $find and $filter co-occur', () => {
+    const spec = { x: { $path: '$.contacts', $find: { exists: '$.role' }, $filter: { exists: '$.role' } } };
+    expect(() => transform(source, spec)).toThrow(AjsontError);
+  });
+});
+
+describe('nested $map', () => {
+  it('maps arrays nested inside mapped elements', () => {
+    const source = {
+      orders: [
+        { id: 'o1', items: [{ sku: 'a' }, { sku: 'b' }] },
+        { id: 'o2', items: [{ sku: 'c' }] },
+      ],
+    };
+    const spec = {
+      orders: {
+        $path: '$.orders',
+        $map: {
+          orderId: { $path: '$.id' },
+          skus: { $path: '$.items', $map: { code: { $path: '$.sku' } } },
+        },
+      },
+    };
+    expect(transform(source, spec)).toEqual({
+      orders: [
+        { orderId: 'o1', skus: [{ code: 'a' }, { code: 'b' }] },
+        { orderId: 'o2', skus: [{ code: 'c' }] },
+      ],
+    });
+  });
+});
+
 describe('transform - integration', () => {
   it('transforms a realistic event normalization scenario', () => {
     const source = {
