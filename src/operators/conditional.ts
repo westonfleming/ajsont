@@ -1,6 +1,7 @@
 import { resolve } from '../resolve.js';
 import { MISSING, type IfCondition, type OperatorNode, type SpecValue, type TransformOptions } from '../types.js';
 import { executeOperator, isOperatorNode } from './index.js';
+import { evaluateCondition } from './conditions.js';
 
 /**
  * Handle $if operator: evaluate a condition and resolve either the `then` or `else` branch.
@@ -21,29 +22,6 @@ export function handleIf(
   }
 
   return resolveValue(branch as SpecValue, source, options);
-}
-
-function evaluateCondition(condition: IfCondition, source: unknown): boolean {
-  if ('exists' in condition) {
-    const value = resolve(source, condition.exists);
-    return value !== MISSING;
-  }
-
-  if ('eq' in condition) {
-    const [path, expected] = condition.eq;
-    const value = resolve(source, path);
-    if (value === MISSING) return false;
-    return value === expected;
-  }
-
-  if ('ne' in condition) {
-    const [path, expected] = condition.ne;
-    const value = resolve(source, path);
-    if (value === MISSING) return true;
-    return value !== expected;
-  }
-
-  return false;
 }
 
 function resolveValue(

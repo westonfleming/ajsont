@@ -15,8 +15,9 @@ export function transform(
 
 /**
  * Recursively walk the spec, resolving operator nodes and passing through literals.
+ * Exported so array operators ($map) can re-root the walk on each element.
  */
-function walk(
+export function walk(
   node: SpecValue,
   source: unknown,
   options: TransformOptions,

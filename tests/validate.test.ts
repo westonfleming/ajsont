@@ -61,6 +61,60 @@ describe('validateSpec', () => {
     expect(errors.some((e) => e.message.includes('tuple'))).toBe(true);
   });
 
+  it('accepts a valid $map / $filter / $find spec', () => {
+    const spec = {
+      lines: {
+        $path: '$.order.items',
+        $filter: { gt: ['$.quantity', 0] },
+        $map: { name: { $path: '$.title' } },
+      },
+      primary: { $path: '$.contacts', $find: { eq: ['$.role', 'primary'] }, $default: null },
+    };
+    expect(validateSpec(spec)).toEqual([]);
+  });
+
+  it('detects unknown condition keys in $filter', () => {
+    const spec = { x: { $path: '$.a', $filter: { between: [1, 2] } } };
+    const errors = validateSpec(spec);
+    expect(errors.some((e) => e.message.includes('unknown condition key'))).toBe(true);
+  });
+
+  it('detects $map/$filter/$find without a $path or array scope', () => {
+    const spec = { x: { $filter: { exists: '$.a' } } };
+    const errors = validateSpec(spec);
+    expect(errors.some((e) => e.message.includes('requires a $path'))).toBe(true);
+  });
+
+  it('allows array operators without $path inside a $map scope', () => {
+    const spec = {
+      x: { $path: '$.rows', $map: { items: { $filter: { exists: '$.a' } } } },
+    };
+    expect(validateSpec(spec)).toEqual([]);
+  });
+
+  it('detects $find and $filter used together', () => {
+    const spec = { x: { $path: '$.a', $find: { exists: '$.b' }, $filter: { exists: '$.b' } } };
+    const errors = validateSpec(spec);
+    expect(errors.some((e) => e.message.includes('cannot be used together'))).toBe(true);
+  });
+
+  it('detects a $filter comparison with a non-tuple value', () => {
+    const spec = { x: { $path: '$.a', $filter: { gt: '$.q' } } };
+    const errors = validateSpec(spec);
+    expect(errors.some((e) => e.message.includes('tuple'))).toBe(true);
+  });
+
+  it('validates nested specs inside a $map', () => {
+    const spec = { x: { $path: '$.a', $map: { y: { $unknownOp: true } } } };
+    const errors = validateSpec(spec);
+    expect(errors.some((e) => e.message.includes('Unknown operator'))).toBe(true);
+  });
+
+  it('accepts the new numeric conditions in $if', () => {
+    const spec = { x: { $if: { gte: ['$.n', 10] }, then: 'big', else: 'small' } };
+    expect(validateSpec(spec)).toEqual([]);
+  });
+
   it('validates nested specs', () => {
     const spec = {
       outer: {

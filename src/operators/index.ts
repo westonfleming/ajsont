@@ -5,6 +5,7 @@ import { handleConcat } from './concat.js';
 import { handleCoalesce } from './coalesce.js';
 import { handleLower, handleUpper, handleTrim } from './string.js';
 import { handleIf } from './conditional.js';
+import { handleArray } from './array.js';
 
 const OPERATOR_KEYS = new Set([
   '$path',
@@ -15,6 +16,9 @@ const OPERATOR_KEYS = new Set([
   '$upper',
   '$trim',
   '$if',
+  '$map',
+  '$filter',
+  '$find',
 ]);
 
 /**
@@ -27,7 +31,9 @@ export function isOperatorNode(obj: object): obj is OperatorNode {
 
 /**
  * Execute the appropriate operator handler for a node.
- * Priority order matters: $literal > $if > $path > $concat > $coalesce > string ops
+ * Priority order matters: $literal > $if > array ops > $path > $concat > $coalesce > string ops.
+ * Array operators ($map/$filter/$find) take precedence over $path because they
+ * consume the same $path to resolve the source array.
  */
 export function executeOperator(
   node: OperatorNode,
@@ -39,6 +45,9 @@ export function executeOperator(
   }
   if ('$if' in node) {
     return handleIf(node, source, options);
+  }
+  if ('$map' in node || '$filter' in node || '$find' in node) {
+    return handleArray(node, source, options);
   }
   if ('$path' in node) {
     return handlePath(node, source, options);

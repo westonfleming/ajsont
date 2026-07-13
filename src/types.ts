@@ -36,15 +36,32 @@ export interface OperatorNode {
   $if?: IfCondition;
   then?: SpecValue;
   else?: SpecValue;
+  $map?: SpecValue;
+  $filter?: ArrayCondition;
+  $find?: ArrayCondition;
   $default?: unknown;
   $onMissing?: OnMissing;
   [key: string]: unknown;
 }
 
-export type IfCondition =
+/**
+ * A condition is a single-key object describing a comparison against a
+ * JSONPath-resolved value. Shared by $if, $filter, and $find.
+ */
+export type Condition =
   | { exists: string }
   | { eq: [string, unknown] }
-  | { ne: [string, unknown] };
+  | { ne: [string, unknown] }
+  | { gt: [string, number] }
+  | { lt: [string, number] }
+  | { gte: [string, number] }
+  | { lte: [string, number] };
+
+/** Condition used by $if's then/else branching. */
+export type IfCondition = Condition;
+
+/** Condition used by $filter and $find to test array elements. */
+export type ArrayCondition = Condition;
 
 export interface OperatorHandler {
   (node: OperatorNode, source: unknown, options: TransformOptions): unknown;
