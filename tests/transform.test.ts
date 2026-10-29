@@ -357,6 +357,83 @@ describe('nested $map', () => {
   });
 });
 
+describe('compound conditions (and / or / not)', () => {
+  it('evaluates and / or / not in $if', () => {
+    const source = { age: 30, status: 'active' };
+    const andSpec = { ok: { $if: { and: [{ gte: ['$.age', 18] }, { eq: ['$.status', 'active'] }] }, then: 'yes', else: 'no' } };
+    expect(transform(source, andSpec)).toEqual({ ok: 'yes' });
+
+    const orSpec = { ok: { $if: { or: [{ eq: ['$.status', 'banned'] }, { lt: ['$.age', 18] }] }, then: 'yes', else: 'no' } };
+    expect(transform(source, orSpec)).toEqual({ ok: 'no' });
+
+    const notSpec = { ok: { $if: { not: { exists: '$.deletedAt' } }, then: 'live', else: 'gone' } };
+    expect(transform(source, notSpec)).toEqual({ ok: 'live' });
+  });
+
+  it('filters an array with a compound range (and)', () => {
+    const source = {
+      items: [
+        { title: 'Pen', price: 2, quantity: 3 },
+        { title: 'Pad', price: 80, quantity: 5 },
+        { title: 'Ink', price: 9, quantity: 0 },
+      ],
+    };
+    const spec = {
+      affordableInStock: {
+        $path: '$.items',
+        $filter: { and: [{ gt: ['$.quantity', 0] }, { lt: ['$.price', 50] }] },
+      },
+    };
+    expect(transform(source, spec)).toEqual({
+      affordableInStock: [{ title: 'Pen', price: 2, quantity: 3 }],
+    });
+  });
+
+  it('finds the first element matching an or condition', () => {
+    const source = {
+      contacts: [
+        { role: 'guest', email: 'g@x.com' },
+        { role: 'billing', email: 'b@x.com' },
+        { role: 'primary', email: 'p@x.com' },
+      ],
+    };
+    const spec = {
+      contact: { $path: '$.contacts', $find: { or: [{ eq: ['$.role', 'primary'] }, { eq: ['$.role', 'billing'] }] } },
+    };
+    expect(transform(source, spec)).toEqual({ contact: { role: 'billing', email: 'b@x.com' } });
+  });
+
+  it('handles deeply nested combinators (and > or > not)', () => {
+    const source = { items: [
+      { kind: 'book', price: 12, archived: false },
+      { kind: 'dvd', price: 12, archived: false },
+      { kind: 'book', price: 12, archived: true },
+    ] };
+    const spec = {
+      picked: {
+        $path: '$.items',
+        $filter: {
+          and: [
+            { or: [{ eq: ['$.kind', 'book'] }, { eq: ['$.kind', 'magazine'] }] },
+            { not: { eq: ['$.archived', true] } },
+          ],
+        },
+      },
+    };
+    expect(transform(source, spec)).toEqual({
+      picked: [{ kind: 'book', price: 12, archived: false }],
+    });
+  });
+
+  it('treats empty and as true, empty or as false', () => {
+    const source = { items: [{ n: 1 }, { n: 2 }] };
+    expect(transform(source, { all: { $path: '$.items', $filter: { and: [] } } })).toEqual({
+      all: [{ n: 1 }, { n: 2 }],
+    });
+    expect(transform(source, { none: { $path: '$.items', $filter: { or: [] } } })).toEqual({ none: [] });
+  });
+});
+
 describe('transform - integration', () => {
   it('transforms a realistic event normalization scenario', () => {
     const source = {

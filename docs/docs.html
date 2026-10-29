@@ -269,12 +269,31 @@ try {
           <tr><td><code>{ "lt": ["$.path", 0] }</code></td><td>True if the resolved number is less than the value.</td></tr>
           <tr><td><code>{ "gte": ["$.path", 0] }</code></td><td>True if the resolved number is greater than or equal to the value.</td></tr>
           <tr><td><code>{ "lte": ["$.path", 0] }</code></td><td>True if the resolved number is less than or equal to the value.</td></tr>
+          <tr><td><code>{ "and": [ cond, … ] }</code></td><td>True if every nested condition is true (empty list is true).</td></tr>
+          <tr><td><code>{ "or": [ cond, … ] }</code></td><td>True if any nested condition is true (empty list is false).</td></tr>
+          <tr><td><code>{ "not": cond }</code></td><td>Negates a nested condition.</td></tr>
         </tbody>
       </table></div>
       <p>
         The numeric comparisons (<code>gt</code>, <code>lt</code>, <code>gte</code>, <code>lte</code>)
         coerce both sides to numbers; a missing or non-numeric value evaluates to <code>false</code>.
       </p>
+      <p>
+        The boolean combinators <code>and</code>, <code>or</code>, and <code>not</code> compose any of the
+        above &mdash; including each other &mdash; and nest to any depth, so a single condition can express
+        compound logic:
+      </p>
+      <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
+        <pre><code data-lang="json">{
+  "$path": "$.order.items",
+  "$filter": {
+    "and": [
+      { "gt": ["$.quantity", 0] },
+      { "lt": ["$.price", 50] },
+      { "not": { "exists": "$.discontinuedAt" } }
+    ]
+  }
+}</code></pre></div>
       <p>The <code>then</code> and <code>else</code> branches can be literal values, JSONPath strings, or nested operator nodes:</p>
       <div class="codeblock"><div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span class="fname">spec.json</span><button class="copy-code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>
         <pre><code data-lang="json">{

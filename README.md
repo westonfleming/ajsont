@@ -246,8 +246,26 @@ Evaluate a condition and resolve either the `then` or `else` branch.
 | `{ "lt": ["$.path", 0] }`       | True if the resolved number is less than the value   |
 | `{ "gte": ["$.path", 0] }`      | True if the resolved number is `>=` the value        |
 | `{ "lte": ["$.path", 0] }`      | True if the resolved number is `<=` the value        |
+| `{ "and": [cond, …] }`          | True if every nested condition is true (empty = true) |
+| `{ "or": [cond, …] }`           | True if any nested condition is true (empty = false)  |
+| `{ "not": cond }`               | Negates a nested condition                           |
 
 The same condition shape is shared by `$filter` and `$find`. Numeric comparisons coerce both sides to numbers; a missing or non-numeric value is `false`.
+
+The boolean combinators `and`, `or`, and `not` compose any of the above — including each other — and nest to any depth:
+
+```json
+{
+  "$path": "$.order.items",
+  "$filter": {
+    "and": [
+      { "gt": ["$.quantity", 0] },
+      { "lt": ["$.price", 50] },
+      { "not": { "exists": "$.discontinuedAt" } }
+    ]
+  }
+}
+```
 
 The `then` and `else` branches can be:
 

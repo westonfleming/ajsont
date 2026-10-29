@@ -18,8 +18,9 @@ const KNOWN_OPERATORS = new Set([
 
 const VALID_ON_MISSING = new Set(['omit', 'null', 'error']);
 
-const CONDITION_KEYS = new Set(['exists', 'eq', 'ne', 'gt', 'lt', 'gte', 'lte']);
+const CONDITION_KEYS = new Set(['exists', 'eq', 'ne', 'gt', 'lt', 'gte', 'lte', 'and', 'or', 'not']);
 const TUPLE_CONDITION_KEYS = new Set(['eq', 'ne', 'gt', 'lt', 'gte', 'lte']);
+const LIST_CONDITION_KEYS = ['and', 'or'] as const;
 const ARRAY_OPERATORS = ['$map', '$filter', '$find'] as const;
 
 export interface ValidationError {
@@ -181,7 +182,7 @@ function validateCondition(
   if (presentKeys.length === 0) {
     errors.push({
       path,
-      message: `${opName} condition must have one of: exists, eq, ne, gt, lt, gte, lte`,
+      message: `${opName} condition must have one of: exists, eq, ne, gt, lt, gte, lte, and, or, not`,
     });
   }
 
@@ -198,5 +199,23 @@ function validateCondition(
         errors.push({ path, message: `${opName} ${key} must be a [path, value] tuple` });
       }
     }
+  }
+
+  // Boolean combinators: and/or take a list of conditions, not a single one.
+  for (const key of LIST_CONDITION_KEYS) {
+    if (key in cond) {
+      const value = cond[key];
+      if (!Array.isArray(value)) {
+        errors.push({ path, message: `${opName} ${key} must be an array of conditions` });
+      } else {
+        value.forEach((sub, i) =>
+          validateCondition(sub, `${opName} ${key}[${i}]`, path, errors),
+        );
+      }
+    }
+  }
+
+  if ('not' in cond) {
+    validateCondition(cond.not, `${opName} not`, path, errors);
   }
 }

@@ -9,6 +9,20 @@ type Comparison = (typeof COMPARISONS)[number];
  * which becomes the JSONPath root). Shared by $if, $filter, and $find.
  */
 export function evaluateCondition(condition: Condition, source: unknown): boolean {
+  // Boolean combinators compose other conditions; an empty `and` is vacuously
+  // true, an empty `or` is false.
+  if ('and' in condition) {
+    return condition.and.every((c) => evaluateCondition(c, source));
+  }
+
+  if ('or' in condition) {
+    return condition.or.some((c) => evaluateCondition(c, source));
+  }
+
+  if ('not' in condition) {
+    return !evaluateCondition(condition.not, source);
+  }
+
   if ('exists' in condition) {
     return resolve(source, condition.exists) !== MISSING;
   }
