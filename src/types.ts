@@ -45,8 +45,9 @@ export interface OperatorNode {
 }
 
 /**
- * A condition is a single-key object describing a comparison against a
- * JSONPath-resolved value. Shared by $if, $filter, and $find.
+ * A condition describes a test against a JSONPath-resolved value. Shared by
+ * $if, $filter, and $find. The comparison forms test a single path; the boolean
+ * combinators (and/or/not) compose other conditions and nest arbitrarily.
  */
 export type Condition =
   | { exists: string }
@@ -55,7 +56,10 @@ export type Condition =
   | { gt: [string, number] }
   | { lt: [string, number] }
   | { gte: [string, number] }
-  | { lte: [string, number] };
+  | { lte: [string, number] }
+  | { and: Condition[] }
+  | { or: Condition[] }
+  | { not: Condition };
 
 /** Condition used by $if's then/else branching. */
 export type IfCondition = Condition;

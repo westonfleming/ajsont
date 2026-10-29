@@ -115,6 +115,32 @@ describe('validateSpec', () => {
     expect(validateSpec(spec)).toEqual([]);
   });
 
+  it('accepts compound conditions (and / or / not)', () => {
+    const spec = {
+      a: { $if: { and: [{ gt: ['$.n', 0] }, { not: { exists: '$.x' } }] }, then: 'y' },
+      b: { $path: '$.items', $filter: { or: [{ eq: ['$.role', 'primary'] }, { eq: ['$.role', 'billing'] }] } },
+    };
+    expect(validateSpec(spec)).toEqual([]);
+  });
+
+  it('detects and/or that is not an array of conditions', () => {
+    const spec = { x: { $path: '$.a', $filter: { and: { gt: ['$.n', 0] } } } };
+    const errors = validateSpec(spec);
+    expect(errors.some((e) => e.message.includes('and must be an array of conditions'))).toBe(true);
+  });
+
+  it('recurses into nested conditions and flags bad keys', () => {
+    const spec = { x: { $path: '$.a', $filter: { and: [{ gt: ['$.n', 0] }, { between: [1, 2] }] } } };
+    const errors = validateSpec(spec);
+    expect(errors.some((e) => e.message.includes('unknown condition key: between'))).toBe(true);
+  });
+
+  it('detects not with a non-condition value', () => {
+    const spec = { x: { $if: { not: 'nope' }, then: 'y' } };
+    const errors = validateSpec(spec);
+    expect(errors.some((e) => e.message.includes('must be a condition object'))).toBe(true);
+  });
+
   it('validates nested specs', () => {
     const spec = {
       outer: {
